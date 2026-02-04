@@ -15,81 +15,86 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# --- 2. LE SELECTEUR INTELLIGENT ---
+# --- 2. CERVEAU INTELLIGENT ---
 def trouver_modele_disponible():
-    """Demande à Google quel modèle est disponible pour cette clé API"""
     try:
-        # On demande la liste officielle à Google
-        liste_modeles = genai.list_models()
-        for m in liste_modeles:
-            # On cherche un modèle capable de générer du texte
-            if 'generateContent' in m.supported_generation_methods:
-                # On privilégie le modèle rapide "flash" s'il existe
-                if 'flash' in m.name:
-                    return m.name
-        
-        # Si on n'a pas trouvé de "flash", on refait un tour et on prend le premier qui vient
         liste_modeles = genai.list_models()
         for m in liste_modeles:
             if 'generateContent' in m.supported_generation_methods:
-                return m.name
-                
-    except Exception as e:
-        return None
-    
-    # Si tout échoue, on tente le nom standard par défaut
-    return "models/gemini-1.5-flash"
+                if 'flash' in m.name: return m.name
+        return "models/gemini-1.5-flash"
+    except:
+        return "models/gemini-pro"
 
 # --- 3. FONCTIONS IA ---
 def analyser(text):
     nom_modele = trouver_modele_disponible()
-    if not nom_modele:
-        return {"sentiment": "Erreur", "category": "Erreur", "summary": "Connexion Google échouée"}
-        
     model = genai.GenerativeModel(nom_modele)
     
     prompt = f"""
-    Analyse ce message en JSON strict.
+    Analyse ce problème client en JSON.
     Message : "{text}"
-    Format : {{"sentiment": "Positif/Négatif", "category": "Sujet", "summary": "Résumé court"}}
+    Format : {{"category": "Le type de problème (ex: Retard, Casse, Vol)", "summary": "Résumé des faits"}}
     """
     try:
         response = model.generate_content(prompt)
         clean = response.text.replace("```json", "").replace("```", "").strip()
         return json.loads(clean)
-    except Exception as e:
-        return {"sentiment": "Erreur", "category": "Erreur", "summary": f"Erreur technique : {e}"}
+    except:
+        return {"category": "Problème", "summary": "Incident client"}
 
-def repondre(text, analysis):
+def generer_reclamation_client(text, analysis):
     nom_modele = trouver_modele_disponible()
     model = genai.GenerativeModel(nom_modele)
     
-    prompt = f"Réponds poliment à ce client : {text}"
+    # C'est ici qu'on change le comportement de l'IA
+    prompt = f"""
+    Tu es un assistant juridique expert en défense du consommateur.
+    
+    SITUATION :
+    Un client a subi ce préjudice : "{text}"
+    Catégorie : {analysis.get('category')}
+    
+    MISSION :
+    Rédige une lettre de réclamation formelle et ferme adressée au Service Client de l'entreprise responsable.
+    
+    CONTENU OBLIGATOIRE :
+    1. Un objet clair (ex: Mise en demeure, Réclamation).
+    2. Un rappel factuel des faits (utilise le résumé).
+    3. Une demande explicite de DÉDOMMAGEMENT, de GESTE COMMERCIAL ou de REMBOURSEMENT.
+    4. Un ton courtois mais très ferme et juridique.
+    5. Termine par une formule de politesse standard.
+    """
     try:
         response = model.generate_content(prompt)
         return response.text
     except:
-        return "Impossible de rédiger la réponse."
+        return "Impossible de rédiger la lettre."
 
 # --- 4. INTERFACE ---
-st.set_page_config(page_title="Service Client IA", page_icon="🤖")
-st.title("🤖 Assistant Intelligent")
+st.set_page_config(page_title="Générateur de Réclamation", page_icon="⚖️")
 
-# On affiche quel modèle a été trouvé (pour vérifier que ça marche)
-modele_actuel = trouver_modele_disponible()
-st.caption(f"✅ Connecté au cerveau : {modele_actuel}")
+st.title("⚖️ Assistant Réclamation & Dédommagement")
+st.caption("Ne vous laissez pas faire ! L'IA rédige votre demande de remboursement.")
 
-message = st.text_area("Votre réclamation :", height=150)
+message = st.text_area("Racontez votre mésaventure ici :", height=150, placeholder="Exemple : Mon train avait 4h de retard et la clim ne marchait pas...")
 
-if st.button("Analyser"):
+if st.button("Générer ma lettre de réclamation 📄"):
     if message:
-        with st.spinner("Analyse en cours..."):
-            res = analyser(message)
+        with st.spinner("Rédaction de votre courrier en cours..."):
+            # Analyse rapide
+            infos = analyser(message)
             
-            c1, c2 = st.columns(2)
-            c1.metric("Humeur", res.get("sentiment"))
-            c2.metric("Sujet", res.get("category"))
-            st.info(f"Résumé : {res.get('summary')}")
+            st.success(f"Dossier identifié : {infos.get('category')}")
             
             st.divider()
-            st.write(repondre(message, res))
+            
+            st.subheader("📩 Votre courrier prêt à envoyer :")
+            # On génère la lettre
+            lettre = generer_reclamation_client(message, infos)
+            
+            # On affiche la lettre dans une zone de code pour copier facilement
+            st.text_area("Copiez ce texte :", value=lettre, height=400)
+            
+    else:
+        st.warning("Décrivez d'abord votre problème !")
