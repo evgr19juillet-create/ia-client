@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import json
 import os
+import urllib.parse # Nécessaire pour créer le lien mail
 
 # --- 1. CONFIGURATION ---
 try:
@@ -15,7 +16,7 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# --- 2. CERVEAU INTELLIGENT ---
+# --- 2. FONCTIONS ---
 def trouver_modele_disponible():
     try:
         liste_modeles = genai.list_models()
@@ -26,75 +27,52 @@ def trouver_modele_disponible():
     except:
         return "models/gemini-pro"
 
-# --- 3. FONCTIONS IA ---
 def analyser(text):
     nom_modele = trouver_modele_disponible()
     model = genai.GenerativeModel(nom_modele)
-    
-    prompt = f"""
-    Analyse ce problème client en JSON.
-    Message : "{text}"
-    Format : {{"category": "Le type de problème (ex: Retard, Casse, Vol)", "summary": "Résumé des faits"}}
-    """
     try:
-        response = model.generate_content(prompt)
-        clean = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean)
+        response = model.generate_content(f"Analyse ce problème en JSON (category, summary). Message : {text}")
+        return json.loads(response.text.replace("```json", "").replace("```", "").strip())
     except:
-        return {"category": "Problème", "summary": "Incident client"}
+        return {"category": "Litige", "summary": "Problème client"}
 
 def generer_reclamation_client(text, analysis):
     nom_modele = trouver_modele_disponible()
     model = genai.GenerativeModel(nom_modele)
     
-    # C'est ici qu'on change le comportement de l'IA
     prompt = f"""
-    Tu es un assistant juridique expert en défense du consommateur.
-    
-    SITUATION :
-    Un client a subi ce préjudice : "{text}"
-    Catégorie : {analysis.get('category')}
-    
-    MISSION :
-    Rédige une lettre de réclamation formelle et ferme adressée au Service Client de l'entreprise responsable.
-    
-    CONTENU OBLIGATOIRE :
-    1. Un objet clair (ex: Mise en demeure, Réclamation).
-    2. Un rappel factuel des faits (utilise le résumé).
-    3. Une demande explicite de DÉDOMMAGEMENT, de GESTE COMMERCIAL ou de REMBOURSEMENT.
-    4. Un ton courtois mais très ferme et juridique.
-    5. Termine par une formule de politesse standard.
+    SITUATION : Client mécontent : "{text}" ({analysis.get('category')})
+    MISSION : Rédige un mail de réclamation court, percutant et professionnel.
+    Ne mets PAS les crochets [Nom] ou [Date], écris le texte brut prêt à être envoyé.
+    Demande un remboursement ou un dédommagement clair.
     """
     try:
         response = model.generate_content(prompt)
         return response.text
     except:
-        return "Impossible de rédiger la lettre."
+        return "Erreur de rédaction."
 
-# --- 4. INTERFACE ---
-st.set_page_config(page_title="Générateur de Réclamation", page_icon="⚖️")
+# --- 3. INTERFACE ---
+st.set_page_config(page_title="Mon Avocat IA", page_icon="⚖️")
+st.title("⚖️ Avocat de Poche")
 
-st.title("⚖️ Assistant Réclamation & Dédommagement")
-st.caption("Ne vous laissez pas faire ! L'IA rédige votre demande de remboursement.")
+message = st.text_area("Expliquez votre problème :", height=100)
 
-message = st.text_area("Racontez votre mésaventure ici :", height=150, placeholder="Exemple : Mon train avait 4h de retard et la clim ne marchait pas...")
-
-if st.button("Générer ma lettre de réclamation 📄"):
-    if message:
-        with st.spinner("Rédaction de votre courrier en cours..."):
-            # Analyse rapide
-            infos = analyser(message)
-            
-            st.success(f"Dossier identifié : {infos.get('category')}")
-            
-            st.divider()
-            
-            st.subheader("📩 Votre courrier prêt à envoyer :")
-            # On génère la lettre
-            lettre = generer_reclamation_client(message, infos)
-            
-            # On affiche la lettre dans une zone de code pour copier facilement
-            st.text_area("Copiez ce texte :", value=lettre, height=400)
-            
-    else:
-        st.warning("Décrivez d'abord votre problème !")
+if st.button("Générer la réclamation ⚡"):
+    with st.spinner("L'IA prépare votre défense..."):
+        infos = analyser(message)
+        lettre = generer_reclamation_client(message, infos)
+        
+        st.success("Dossier prêt !")
+        st.text_area("Texte généré :", value=lettre, height=300)
+        
+        # --- LA MAGIE : Le lien mailto ---
+        # On encode le texte pour qu'il passe dans une URL
+        sujet = f"Réclamation : {infos.get('category')}"
+        sujet_encode = urllib.parse.quote(sujet)
+        corps_encode = urllib.parse.quote(lettre)
+        
+        # Création du lien qui ouvre votre boîte mail
+        lien_mail = f"mailto:?subject={sujet_encode}&body={corps_encode}"
+        
+        st.link_button("📧 Ouvrir dans mon Gmail / Outlook", lien_mail)
