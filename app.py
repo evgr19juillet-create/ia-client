@@ -6,38 +6,25 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# --- 1. CONFIGURATION DE LA PAGE (Look & Feel) ---
+# --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(
     page_title="Justi-Bot",
-    page_icon="⚖️",
-    layout="wide", # On utilise toute la largeur de l'écran
+    page_icon="🛡️",
+    layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- 2. STYLE PERSONNALISÉ (CSS) ---
-# C'est ici qu'on met le "maquillage" du site
+# --- 2. STYLE CSS (Le maquillage) ---
 st.markdown("""
 <style>
     .stButton>button {
         width: 100%;
-        border-radius: 10px;
+        border-radius: 8px;
         height: 3em;
         font-weight: bold;
     }
-    .reportview-container {
-        background: #f0f2f6;
-    }
-    h1 {
-        color: #0e1117;
-        text-align: center;
-    }
-    .success-box {
-        padding: 20px;
-        background-color: #d4edda;
-        color: #155724;
-        border-radius: 10px;
-        margin-bottom: 10px;
-    }
+    h1 { color: #0e1117; text-align: center; }
+    .stTextArea textarea { font-size: 16px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -71,7 +58,7 @@ def envoyer_mail_reel(destinataire, sujet, corps):
         server.login(user_email, user_password)
         server.send_message(msg)
         server.quit()
-        return True, "✅ Dossier transmis au tribunal (enfin, par mail) !"
+        return True, "✅ Réclamation officielle envoyée avec succès !"
     except Exception as e:
         return False, f"Erreur technique : {str(e)}"
 
@@ -95,15 +82,20 @@ def analyser(text):
 
 def generer_reclamation_offensive(text, analysis):
     model = genai.GenerativeModel(trouver_modele_disponible())
+    
+    # ICI : On change la personnalité pour rester légal mais ferme
     prompt = f"""
-    Tu es un avocat redoutable spécialisé en droit de la consommation.
+    Tu es un expert en médiation et en défense des consommateurs (NON AVOCAT).
     SITUATION : "{text}" (Catégorie: {analysis.get('category')})
     
-    MISSION : Rédige une MISE EN DEMEURE formelle.
-    EXIGE un remboursement immédiat ou un dédommagement chiffré.
-    Cite des articles de loi fictifs ou réels pour impressionner.
-    Ton : Froid, menaçant (juridiquement), professionnel.
-    Pas de crochets [ ]. Texte prêt à l'emploi.
+    MISSION : Rédige une lettre de réclamation FORMELLE et FERME.
+    OBJECTIF : Exiger un remboursement ou une indemnisation immédiate.
+    TON : Sérieux, factuel, juridique (cite le Code de la Consommation si pertinent), mais courtois.
+    
+    IMPORTANT :
+    1. Ne t'invente PAS un titre d'avocat ou de Maître.
+    2. Signe simplement "Le Client" ou laisse l'espace pour le nom.
+    3. Pas de crochets [ ]. Texte prêt à l'emploi.
     """
     try:
         response = model.generate_content(prompt)
@@ -111,68 +103,64 @@ def generer_reclamation_offensive(text, analysis):
     except:
         return "Erreur de rédaction."
 
-# --- 5. INTERFACE UTILISATEUR (Façade) ---
+# --- 5. INTERFACE (Façade) ---
 
-# Barre latérale (Menu de gauche)
+# Sidebar
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/4252/4252329.png", width=100)
-    st.title("Justi-Bot 🤖")
+    st.title("🛡️ Justi-Bot")
     st.markdown("---")
-    st.write("### 📖 Comment ça marche ?")
-    st.info("1. Racontez vos malheurs.\n2. L'IA rédige une lettre juridique.\n3. Vous validez et l'IA l'envoie.")
-    st.markdown("---")
-    st.caption("© 2024 - Votre Avocat de Poche")
+    st.info("Votre assistant personnel pour faire valoir vos droits de consommateur sans frais d'avocat.")
+    st.write("### Mode d'emploi :")
+    st.caption("1. Décrivez le litige.\n2. L'IA rédige la mise en demeure.\n3. Vous envoyez.")
 
-# Titre Principal
-st.title("⚖️ Cabinet de Défense Automatisé")
-st.markdown("#### *Ne laissez plus rien passer. Réclamez votre dû.*")
+# Page principale
+st.title("⚖️ Assistant de Réclamation Automatisé")
+st.markdown("#### *Obtenez réparation pour vos produits défectueux ou retards.*")
 st.divider()
 
-# Zone de saisie (2 colonnes pour faire pro)
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.subheader("1. Les Faits")
-    message = st.text_area("Décrivez le litige en détail :", height=200, placeholder="Exemple : J'ai reçu ma commande #12345 avec 3 semaines de retard et l'écran est fissuré...")
+    st.subheader("1. Le Problème")
+    message = st.text_area("Détails du litige :", height=180, placeholder="Ex: TV livrée cassée, refus de remboursement du vendeur...")
 
 with col2:
-    st.subheader("2. La Cible")
-    email_destinataire = st.text_input("Email du Service Client :", placeholder="sav@arnaque.com")
-    st.markdown("---")
-    if st.button("Generer la procédure 🔨", type="primary"):
+    st.subheader("2. Le Destinataire")
+    email_destinataire = st.text_input("Email du SAV :", placeholder="contact@vendeur.com")
+    st.write("") # Espace vide
+    st.write("") 
+    if st.button("Rédiger la lettre ✍️", type="primary"):
         if message and email_destinataire:
-            with st.spinner("Consultation des codes juridiques..."):
+            with st.spinner("Analyse juridique en cours..."):
                 infos = analyser(message)
                 lettre = generer_reclamation_offensive(message, infos)
                 st.session_state['lettre_prete'] = lettre
                 st.session_state['infos_pretes'] = infos
                 st.session_state['etape'] = 2
         else:
-            st.error("Dossier incomplet (Message ou Email manquant).")
+            st.error("Merci de remplir tous les champs.")
 
-# Zone de Résultat (s'affiche seulement après le clic)
+# Affichage du résultat
 if 'etape' in st.session_state and st.session_state['etape'] == 2:
     st.divider()
-    st.header("📂 Dossier Juridique Prêt")
     
-    # On met le résultat dans un joli cadre (expander)
-    with st.expander("Voir l'analyse de l'IA", expanded=False):
+    with st.expander("📊 Analyse du dossier (cliquer pour voir)", expanded=False):
         c1, c2 = st.columns(2)
-        c1.metric("Catégorie", st.session_state['infos_pretes'].get('category'))
-        c2.metric("Niveau d'attaque", "MAXIMAL 🔴")
+        c1.metric("Motif", st.session_state['infos_pretes'].get('category'))
+        c2.metric("Stratégie", "Mise en demeure amiable")
 
-    st.subheader("3. Vérification du courrier")
+    st.subheader("3. Validation et Envoi")
+    
     col_text, col_send = st.columns([3, 1])
     
     with col_text:
-        texte_final = st.text_area("Lettre de mise en demeure :", value=st.session_state['lettre_prete'], height=400)
-        sujet_final = st.text_input("Objet du mail :", value=f"URGENT : MISE EN DEMEURE - Dossier {st.session_state['infos_pretes'].get('category')}")
+        texte_final = st.text_area("Votre courrier prêt à partir :", value=st.session_state['lettre_prete'], height=450)
+        sujet_final = st.text_input("Objet :", value=f"RÉCLAMATION - Commande / Dossier {st.session_state['infos_pretes'].get('category')}")
     
     with col_send:
-        st.write("### Action")
-        st.warning("⚠️ Attention, ce bouton envoie réellement le mail.")
-        if st.button("🚀 ENVOYER MAINTENANT"):
-            with st.spinner("Envoi recommandé électronique..."):
+        st.info("Si le texte vous convient, cliquez ci-dessous pour l'expédier.")
+        if st.button("🚀 ENVOYER LE MAIL"):
+            with st.spinner("Transmission en cours..."):
                 succes, msg = envoyer_mail_reel(email_destinataire, sujet_final, texte_final)
                 if succes:
                     st.balloons()
