@@ -3,68 +3,93 @@ import google.generativeai as genai
 import json
 import os
 
-# --- CONFIGURATION ---
+# --- 1. CONFIGURATION ---
 try:
     api_key = st.secrets["GEMINI_KEY"]
 except:
     api_key = os.getenv("GEMINI_KEY")
 
 if not api_key:
-    st.error("ERREUR CRITIQUE : La clé API est introuvable dans les secrets.")
+    st.error("Clé API manquante.")
     st.stop()
 
 genai.configure(api_key=api_key)
 
-# --- LE CERVEAU ---
-def get_model():
-    return genai.GenerativeModel('gemini-pro')
+# --- 2. LE SELECTEUR INTELLIGENT ---
+def trouver_modele_disponible():
+    """Demande à Google quel modèle est disponible pour cette clé API"""
+    try:
+        # On demande la liste officielle à Google
+        liste_modeles = genai.list_models()
+        for m in liste_modeles:
+            # On cherche un modèle capable de générer du texte
+            if 'generateContent' in m.supported_generation_methods:
+                # On privilégie le modèle rapide "flash" s'il existe
+                if 'flash' in m.name:
+                    return m.name
+        
+        # Si on n'a pas trouvé de "flash", on refait un tour et on prend le premier qui vient
+        liste_modeles = genai.list_models()
+        for m in liste_modeles:
+            if 'generateContent' in m.supported_generation_methods:
+                return m.name
+                
+    except Exception as e:
+        return None
+    
+    # Si tout échoue, on tente le nom standard par défaut
+    return "models/gemini-1.5-flash"
 
-# --- ANALYSE ---
+# --- 3. FONCTIONS IA ---
 def analyser(text):
-    model = get_model()
+    nom_modele = trouver_modele_disponible()
+    if not nom_modele:
+        return {"sentiment": "Erreur", "category": "Erreur", "summary": "Connexion Google échouée"}
+        
+    model = genai.GenerativeModel(nom_modele)
+    
     prompt = f"""
-    Analyse ce message et renvoie un JSON.
+    Analyse ce message en JSON strict.
     Message : "{text}"
-    Format : {{"sentiment": "X", "category": "Y", "summary": "Z"}}
+    Format : {{"sentiment": "Positif/Négatif", "category": "Sujet", "summary": "Résumé court"}}
     """
     try:
         response = model.generate_content(prompt)
-        clean_text = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean_text)
+        clean = response.text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean)
     except Exception as e:
-        # ICI : On force l'affichage de l'erreur réelle pour le diagnostic
-        return {"sentiment": "Erreur", "category": "Erreur", "summary": f"DÉTAIL ERREUR : {str(e)}"}
+        return {"sentiment": "Erreur", "category": "Erreur", "summary": f"Erreur technique : {e}"}
 
-# --- REPONSE ---
 def repondre(text, analysis):
-    model = get_model()
-    prompt = f"Réponds à ce client mécontent : {text}"
+    nom_modele = trouver_modele_disponible()
+    model = genai.GenerativeModel(nom_modele)
+    
+    prompt = f"Réponds poliment à ce client : {text}"
     try:
         response = model.generate_content(prompt)
         return response.text
-    except Exception as e:
-        return f"Je ne peux pas répondre à cause de l'erreur suivante : {str(e)}"
+    except:
+        return "Impossible de rédiger la réponse."
 
-# --- INTERFACE ---
-st.set_page_config(page_title="Debug Service Client", page_icon="🔧")
-st.title("🔧 Mode Diagnostic")
+# --- 4. INTERFACE ---
+st.set_page_config(page_title="Service Client IA", page_icon="🤖")
+st.title("🤖 Assistant Intelligent")
 
-message = st.text_area("Message client :", value="Je suis déçu de ma commande.", height=100)
+# On affiche quel modèle a été trouvé (pour vérifier que ça marche)
+modele_actuel = trouver_modele_disponible()
+st.caption(f"✅ Connecté au cerveau : {modele_actuel}")
 
-if st.button("Lancer le diagnostic 🕵️‍♂️"):
-    with st.spinner("Test en cours..."):
-        # Test direct de connexion
-        try:
-            # On tente une analyse
+message = st.text_area("Votre réclamation :", height=150)
+
+if st.button("Analyser"):
+    if message:
+        with st.spinner("Analyse en cours..."):
             res = analyser(message)
-            st.metric("Résultat", res.get("sentiment"))
             
-            # C'EST ICI QU'ON VERRA LE VRAI PROBLEME
-            if "DÉTAIL ERREUR" in res.get("summary", ""):
-                st.error(res.get("summary"))
-            else:
-                st.success(f"Analyse réussie : {res.get('summary')}")
-                st.write(repondre(message, res))
-                
-        except Exception as e:
-            st.error(f"Gros crash : {str(e)}")
+            c1, c2 = st.columns(2)
+            c1.metric("Humeur", res.get("sentiment"))
+            c2.metric("Sujet", res.get("category"))
+            st.info(f"Résumé : {res.get('summary')}")
+            
+            st.divider()
+            st.write(repondre(message, res))
