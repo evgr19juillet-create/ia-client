@@ -1,70 +1,89 @@
 import streamlit as st
 import google.generativeai as genai
 import json
+import os
 
-# --- CONFIGURATION SÉCURISÉE ---
-# L'application va chercher la clé dans les "coffres-forts" du serveur
+# --- 1. CONFIGURATION ---
 try:
+    # On récupère la clé secrète
     api_key = st.secrets["GEMINI_KEY"]
 except:
-    # Si on est en local et qu'on a oublié de configurer, on met un message d'aide
-    st.error("Clé API manquante. Ajoutez-la dans les 'Secrets' de Streamlit Cloud.")
+    # Cas de secours
+    api_key = os.getenv("GEMINI_KEY")
+
+if not api_key:
+    st.error("Oups ! La clé secrète est introuvable.")
     st.stop()
 
 genai.configure(api_key=api_key)
 
-# --- FONCTIONS IA ---
+# --- 2. LE CERVEAU (Modèle standard) ---
 def get_model():
-    # On force un modèle standard pour éviter les erreurs
-    return genai.GenerativeModel('gemini-1.5-flash')
+    # On utilise 'gemini-pro' qui est le modèle le plus stable
+    return genai.GenerativeModel('gemini-pro')
 
+# --- 3. FONCTIONS IA ---
 def analyser(text):
     model = get_model()
     prompt = f"""
-    Analyse ce message. Réponds UNIQUEMENT avec ce JSON :
-    {{
-        "sentiment": "Négatif/Neutre/Positif",
-        "category": "Livraison/Produit/Service/Autre",
-        "summary": "Résumé en 1 phrase"
-    }}
+    Analyse ce message et renvoie UNIQUEMENT un format JSON valide.
     Message : "{text}"
+    Format attendu :
+    {{
+        "sentiment": "Positif/Négatif/Neutre",
+        "category": "Problème technique/Livraison/Facturation/Autre",
+        "summary": "Résumé en 10 mots max"
+    }}
     """
     try:
         response = model.generate_content(prompt)
-        clean = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean)
-    except:
-        return {"sentiment": "Erreur", "category": "Erreur", "summary": "L'IA n'a pas pu lire le message"}
+        # Nettoyage de la réponse pour éviter les bugs de format
+        clean_text = response.text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean_text)
+    except Exception as e:
+        return {"sentiment": "Erreur", "category": "Inconnu", "summary": "Impossible d'analyser"}
 
 def repondre(text, analysis):
     model = get_model()
     prompt = f"""
-    Agis comme un service client pro.
-    Client : {analysis.get('sentiment')}. Problème : {analysis.get('category')}.
-    Message original : "{text}"
+    Tu es un expert du service client.
+    Le client est : {analysis.get('sentiment')}.
+    Le problème est : {analysis.get('category')}.
+    Message du client : "{text}"
     
-    Rédige une réponse courte et empathique.
+    Rédige une réponse courte, professionnelle et bienveillante.
     """
-    response = model.generate_content(prompt)
-    return response.text
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except:
+        return "Désolé, je ne peux pas générer de réponse pour le moment."
 
-# --- INTERFACE ---
-st.set_page_config(page_title="Service Client IA", page_icon="🤖")
-st.title("🤖 Réponse Automatique")
+# --- 4. L'INTERFACE WEB ---
+st.set_page_config(page_title="Mon Service Client IA", page_icon="🤖")
 
-message = st.text_area("Collez la réclamation ici :", height=150)
+st.title("🤖 Assistant Service Client")
+st.write("Cette IA analyse vos réclamations et propose une réponse.")
 
-if st.button("Analyser"):
+message = st.text_area("Collez le message du client ici :", height=150)
+
+if st.button("Lancer l'analyse 🚀"):
     if message:
-        with st.spinner("Analyse en cours..."):
-            analyse = analyser(message)
+        with st.spinner("L'IA réfléchit..."):
+            # Étape 1 : Analyse
+            resultat = analyser(message)
             
-            c1, c2 = st.columns(2)
-            c1.metric("Emotion", analyse.get("sentiment"))
-            c2.metric("Sujet", analyse.get("category"))
-            st.info(analyse.get("summary"))
+            # Affichage des résultats
+            col1, col2 = st.columns(2)
+            col1.metric("Humeur détectée", resultat.get("sentiment"))
+            col2.metric("Type de problème", resultat.get("category"))
+            st.info(f"Résumé : {resultat.get('summary')}")
             
+            st.divider()
+            
+            # Étape 2 : Réponse
             st.subheader("Proposition de réponse :")
-            st.write(repondre(message, analyse))
+            reponse_ia = repondre(message, resultat)
+            st.success(reponse_ia)
     else:
-        st.warning("Il faut écrire un message !")
+        st.warning("Veuillez écrire un message d'abord !")
