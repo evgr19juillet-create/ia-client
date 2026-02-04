@@ -3,87 +3,68 @@ import google.generativeai as genai
 import json
 import os
 
-# --- 1. CONFIGURATION ---
+# --- CONFIGURATION ---
 try:
-    # On récupère la clé secrète
     api_key = st.secrets["GEMINI_KEY"]
 except:
-    # Cas de secours
     api_key = os.getenv("GEMINI_KEY")
 
 if not api_key:
-    st.error("Oups ! La clé secrète est introuvable.")
+    st.error("ERREUR CRITIQUE : La clé API est introuvable dans les secrets.")
     st.stop()
 
 genai.configure(api_key=api_key)
 
-# --- 2. LE CERVEAU (Modèle standard) ---
+# --- LE CERVEAU ---
 def get_model():
-    # On utilise 'gemini-pro' qui est le modèle le plus stable
     return genai.GenerativeModel('gemini-pro')
 
-# --- 3. FONCTIONS IA ---
+# --- ANALYSE ---
 def analyser(text):
     model = get_model()
     prompt = f"""
-    Analyse ce message et renvoie UNIQUEMENT un format JSON valide.
+    Analyse ce message et renvoie un JSON.
     Message : "{text}"
-    Format attendu :
-    {{
-        "sentiment": "Positif/Négatif/Neutre",
-        "category": "Problème technique/Livraison/Facturation/Autre",
-        "summary": "Résumé en 10 mots max"
-    }}
+    Format : {{"sentiment": "X", "category": "Y", "summary": "Z"}}
     """
     try:
         response = model.generate_content(prompt)
-        # Nettoyage de la réponse pour éviter les bugs de format
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
         return json.loads(clean_text)
     except Exception as e:
-        return {"sentiment": "Erreur", "category": "Inconnu", "summary": "Impossible d'analyser"}
+        # ICI : On force l'affichage de l'erreur réelle pour le diagnostic
+        return {"sentiment": "Erreur", "category": "Erreur", "summary": f"DÉTAIL ERREUR : {str(e)}"}
 
+# --- REPONSE ---
 def repondre(text, analysis):
     model = get_model()
-    prompt = f"""
-    Tu es un expert du service client.
-    Le client est : {analysis.get('sentiment')}.
-    Le problème est : {analysis.get('category')}.
-    Message du client : "{text}"
-    
-    Rédige une réponse courte, professionnelle et bienveillante.
-    """
+    prompt = f"Réponds à ce client mécontent : {text}"
     try:
         response = model.generate_content(prompt)
         return response.text
-    except:
-        return "Désolé, je ne peux pas générer de réponse pour le moment."
+    except Exception as e:
+        return f"Je ne peux pas répondre à cause de l'erreur suivante : {str(e)}"
 
-# --- 4. L'INTERFACE WEB ---
-st.set_page_config(page_title="Mon Service Client IA", page_icon="🤖")
+# --- INTERFACE ---
+st.set_page_config(page_title="Debug Service Client", page_icon="🔧")
+st.title("🔧 Mode Diagnostic")
 
-st.title("🤖 Assistant Service Client")
-st.write("Cette IA analyse vos réclamations et propose une réponse.")
+message = st.text_area("Message client :", value="Je suis déçu de ma commande.", height=100)
 
-message = st.text_area("Collez le message du client ici :", height=150)
-
-if st.button("Lancer l'analyse 🚀"):
-    if message:
-        with st.spinner("L'IA réfléchit..."):
-            # Étape 1 : Analyse
-            resultat = analyser(message)
+if st.button("Lancer le diagnostic 🕵️‍♂️"):
+    with st.spinner("Test en cours..."):
+        # Test direct de connexion
+        try:
+            # On tente une analyse
+            res = analyser(message)
+            st.metric("Résultat", res.get("sentiment"))
             
-            # Affichage des résultats
-            col1, col2 = st.columns(2)
-            col1.metric("Humeur détectée", resultat.get("sentiment"))
-            col2.metric("Type de problème", resultat.get("category"))
-            st.info(f"Résumé : {resultat.get('summary')}")
-            
-            st.divider()
-            
-            # Étape 2 : Réponse
-            st.subheader("Proposition de réponse :")
-            reponse_ia = repondre(message, resultat)
-            st.success(reponse_ia)
-    else:
-        st.warning("Veuillez écrire un message d'abord !")
+            # C'EST ICI QU'ON VERRA LE VRAI PROBLEME
+            if "DÉTAIL ERREUR" in res.get("summary", ""):
+                st.error(res.get("summary"))
+            else:
+                st.success(f"Analyse réussie : {res.get('summary')}")
+                st.write(repondre(message, res))
+                
+        except Exception as e:
+            st.error(f"Gros crash : {str(e)}")
