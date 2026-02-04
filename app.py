@@ -2,49 +2,72 @@ import streamlit as st
 import google.generativeai as genai
 import json
 import os
-import urllib.parse # Nécessaire pour créer le lien mail
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # --- 1. CONFIGURATION ---
 try:
     api_key = st.secrets["GEMINI_KEY"]
+    user_email = st.secrets["EMAIL_ADDRESS"]
+    user_password = st.secrets["EMAIL_PASSWORD"]
 except:
-    api_key = os.getenv("GEMINI_KEY")
-
-if not api_key:
-    st.error("Clé API manquante.")
+    # Si les secrets ne sont pas trouvés, on arrête tout
+    st.error("⚠️ Il manque les clés dans les Secrets (GEMINI_KEY, EMAIL_ADDRESS ou EMAIL_PASSWORD).")
     st.stop()
 
 genai.configure(api_key=api_key)
 
-# --- 2. FONCTIONS ---
+# --- 2. FONCTIONS MAIL ---
+def envoyer_mail_reel(destinataire, sujet, corps):
+    """Connecte l'IA au serveur Gmail pour envoyer le mail"""
+    msg = MIMEMultipart()
+    msg['From'] = user_email
+    msg['To'] = destinataire
+    msg['Subject'] = sujet
+    msg.attach(MIMEText(corps, 'plain'))
+
+    try:
+        # Connexion sécurisée à Gmail
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        # On utilise le mot de passe d'application (celui de 16 lettres)
+        server.login(user_email, user_password)
+        server.send_message(msg)
+        server.quit()
+        return True, "Email envoyé avec succès ! 🚀 (Vérifiez vos 'Messages envoyés')"
+    except Exception as e:
+        return False, f"Erreur d'envoi : {str(e)}"
+
+# --- 3. CERVEAU IA ---
 def trouver_modele_disponible():
     try:
-        liste_modeles = genai.list_models()
-        for m in liste_modeles:
-            if 'generateContent' in m.supported_generation_methods:
-                if 'flash' in m.name: return m.name
+        liste = genai.list_models()
+        for m in liste:
+            if 'generateContent' in m.supported_generation_methods and 'flash' in m.name:
+                return m.name
         return "models/gemini-1.5-flash"
     except:
         return "models/gemini-pro"
 
 def analyser(text):
-    nom_modele = trouver_modele_disponible()
-    model = genai.GenerativeModel(nom_modele)
+    model = genai.GenerativeModel(trouver_modele_disponible())
     try:
-        response = model.generate_content(f"Analyse ce problème en JSON (category, summary). Message : {text}")
+        response = model.generate_content(f"Analyse ce litige en JSON (category, summary). Contexte : {text}")
         return json.loads(response.text.replace("```json", "").replace("```", "").strip())
     except:
-        return {"category": "Litige", "summary": "Problème client"}
+        return {"category": "Réclamation", "summary": "Litige client"}
 
-def generer_reclamation_client(text, analysis):
-    nom_modele = trouver_modele_disponible()
-    model = genai.GenerativeModel(nom_modele)
-    
+def generer_reclamation(text, analysis):
+    model = genai.GenerativeModel(trouver_modele_disponible())
     prompt = f"""
-    SITUATION : Client mécontent : "{text}" ({analysis.get('category')})
-    MISSION : Rédige un mail de réclamation court, percutant et professionnel.
-    Ne mets PAS les crochets [Nom] ou [Date], écris le texte brut prêt à être envoyé.
-    Demande un remboursement ou un dédommagement clair.
+    Agis comme un avocat expert.
+    SITUATION : {text}
+    CATÉGORIE : {analysis.get('category')}
+    
+    TÂCHE : Rédige un email de réclamation FORMEL et FERME.
+    Ne mets PAS d'objets [Entre crochets]. Rédige le texte final prêt à partir.
+    Signe simplement "Le Client".
     """
     try:
         response = model.generate_content(prompt)
@@ -52,27 +75,43 @@ def generer_reclamation_client(text, analysis):
     except:
         return "Erreur de rédaction."
 
-# --- 3. INTERFACE ---
-st.set_page_config(page_title="Mon Avocat IA", page_icon="⚖️")
-st.title("⚖️ Avocat de Poche")
+# --- 4. INTERFACE ---
+st.set_page_config(page_title="IA Avocat Connecté", page_icon="⚖️")
+st.title("⚖️ Avocat Automatique")
 
-message = st.text_area("Expliquez votre problème :", height=100)
+col_gauche, col_droite = st.columns(2)
+with col_gauche:
+    message = st.text_area("Expliquez le litige :", height=150, placeholder="Ex: Mon vol a été annulé sans préavis...")
+with col_droite:
+    # Pour tester, mettez VOTRE PROPRE ADRESSE ici au début
+    email_destinataire = st.text_input("Email du destinataire :", placeholder="sav@entreprise.com")
 
-if st.button("Générer la réclamation ⚡"):
-    with st.spinner("L'IA prépare votre défense..."):
-        infos = analyser(message)
-        lettre = generer_reclamation_client(message, infos)
-        
-        st.success("Dossier prêt !")
-        st.text_area("Texte généré :", value=lettre, height=300)
-        
-        # --- LA MAGIE : Le lien mailto ---
-        # On encode le texte pour qu'il passe dans une URL
-        sujet = f"Réclamation : {infos.get('category')}"
-        sujet_encode = urllib.parse.quote(sujet)
-        corps_encode = urllib.parse.quote(lettre)
-        
-        # Création du lien qui ouvre votre boîte mail
-        lien_mail = f"mailto:?subject={sujet_encode}&body={corps_encode}"
-        
-        st.link_button("📧 Ouvrir dans mon Gmail / Outlook", lien_mail)
+if st.button("1. Analyser et Préparer le courrier 🕵️"):
+    if message and email_destinataire:
+        with st.spinner("Rédaction juridique en cours..."):
+            infos = analyser(message)
+            lettre = generer_reclamation(message, infos)
+            
+            st.session_state['lettre_prete'] = lettre
+            st.session_state['infos_pretes'] = infos
+            st.success("Courrier prêt ! Vérifiez ci-dessous.")
+    else:
+        st.error("Il faut un message et un email destinataire !")
+
+# Zone de validation et d'envoi
+if 'lettre_prete' in st.session_state:
+    st.divider()
+    st.subheader("📝 Vérification avant envoi")
+    
+    texte_final = st.text_area("Message à envoyer :", value=st.session_state['lettre_prete'], height=300)
+    sujet_final = st.text_input("Objet du mail :", value=f"Réclamation officielle : {st.session_state['infos_pretes'].get('category')}")
+    
+    # BOUTON DÉCLENCHEUR
+    if st.button("2. Envoyer le mail maintenant 🚀", type="primary"):
+        with st.spinner("Connexion à votre Gmail..."):
+            succes, msg = envoyer_mail_reel(email_destinataire, sujet_final, texte_final)
+            if succes:
+                st.balloons()
+                st.success(msg)
+            else:
+                st.error(msg)
