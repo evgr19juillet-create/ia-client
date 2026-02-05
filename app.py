@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. STYLE CSS (Le maquillage) ---
+# --- 2. STYLE CSS ---
 st.markdown("""
 <style>
     .stButton>button {
@@ -44,7 +44,7 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# --- 4. FONCTIONS (Moteur) ---
+# --- 4. FONCTIONS ---
 def envoyer_mail_reel(destinataire, sujet, corps):
     msg = MIMEMultipart()
     msg['From'] = user_email
@@ -53,6 +53,7 @@ def envoyer_mail_reel(destinataire, sujet, corps):
     msg.attach(MIMEText(corps, 'plain'))
 
     try:
+        # Configuration pour Hostinger (Titan Email)
         server = smtplib.SMTP('smtp.titan.email', 587) 
         server.starttls()
         server.login(user_email, user_password)
@@ -102,9 +103,9 @@ def generer_reclamation_offensive(text, analysis):
     except:
         return "Erreur de rédaction."
 
-# --- 5. INTERFACE (Façade) ---
+# --- 5. INTERFACE ---
 
-# Sidebar (Barre latérale avec Pourboire)
+# Sidebar (Barre latérale avec Paiement)
 with st.sidebar:
     st.title("🛡️ Justi-Bot")
     st.markdown("---")
@@ -113,13 +114,13 @@ with st.sidebar:
     st.write("### Mode d'emploi :")
     st.caption("1. Décrivez le litige.\n2. L'IA rédige la mise en demeure.\n3. Vous envoyez.")
     
-    # --- AJOUT SECTION POURBOIRE ---
+    # --- SECTION POURBOIRE ---
     st.divider() 
     
     st.markdown("### ☕ Soutenir le projet")
     st.write("JustiBot est gratuit. Si cet outil vous a aidé à récupérer votre argent, vous pouvez m'offrir un café !")
     
-    # LIEN CORRIGÉ ICI 👇
+    # VOTRE LIEN ICI 👇
     link = "https://www.buymeacoffee.com/valentinremiot"
     
     st.markdown(f"""
