@@ -34,6 +34,7 @@ try:
     user_email = st.secrets["EMAIL_ADDRESS"]
     user_password = st.secrets["EMAIL_PASSWORD"]
 except:
+    # Fallback pour le développement local
     api_key = os.getenv("GEMINI_KEY")
     user_email = os.getenv("EMAIL_ADDRESS")
     user_password = os.getenv("EMAIL_PASSWORD")
@@ -53,8 +54,8 @@ def envoyer_mail_reel(destinataire, sujet, corps):
     msg.attach(MIMEText(corps, 'plain'))
 
     try:
-        # Configuration pour Hostinger (Titan Email)
-        server = smtplib.SMTP('smtp.titan.email', 587) 
+        # --- CORRECTION ICI : Serveur Hostinger ---
+        server = smtplib.SMTP('smtp.hostinger.com', 587) 
         server.starttls()
         server.login(user_email, user_password)
         server.send_message(msg)
@@ -124,7 +125,7 @@ with st.sidebar:
         "votre contribution permet de payer les serveurs et de garder ce service ouvert à tous."
     )
     
-    # Bouton discret et pro (Lien validé)
+    # Bouton Don
     st.link_button("☕ Faire un don de soutien", "https://www.buymeacoffee.com/valentinremiot")
     
     st.divider()
