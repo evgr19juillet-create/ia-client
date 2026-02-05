@@ -105,31 +105,27 @@ def generer_reclamation_offensive(text, analysis):
 
 # --- 5. INTERFACE ---
 
-# Sidebar (Barre latérale avec Paiement)
+# Sidebar (Barre latérale : Version Élégante)
 with st.sidebar:
     st.title("🛡️ Justi-Bot")
     st.markdown("---")
-    st.info("Votre assistant personnel pour faire valoir vos droits de consommateur sans frais d'avocat.")
     
-    st.write("### Mode d'emploi :")
-    st.caption("1. Décrivez le litige.\n2. L'IA rédige la mise en demeure.\n3. Vous envoyez.")
+    st.write("### 💡 À propos")
+    st.info(
+        "JustiBot est un outil indépendant conçu pour démocratiser l'accès au droit. "
+        "L'IA rédige pour vous des courriers juridiques précis."
+    )
     
-    # --- SECTION POURBOIRE ---
-    st.divider() 
+    st.markdown("---")
     
-    st.markdown("### ☕ Soutenir le projet")
-    st.write("JustiBot est gratuit. Si cet outil vous a aidé à récupérer votre argent, vous pouvez m'offrir un café !")
+    st.write("### ❤️ Soutenir le projet")
+    st.caption(
+        "Cet outil est gratuit. Si vous avez obtenu gain de cause ou économisé des frais d'avocat, "
+        "votre contribution permet de payer les serveurs et de garder ce service ouvert à tous."
+    )
     
-    # VOTRE LIEN ICI 👇
-    link = "https://www.buymeacoffee.com/valentinremiot"
-    
-    st.markdown(f"""
-    <div style="text-align: center; margin-top: 15px;">
-        <a href="{link}" target="_blank">
-            <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 50px !important;width: 180px !important;" >
-        </a>
-    </div>
-    """, unsafe_allow_html=True)
+    # Bouton discret et pro (Lien validé)
+    st.link_button("☕ Faire un don de soutien", "https://www.buymeacoffee.com/valentinremiot")
     
     st.divider()
     st.caption("© 2026 JustiBot")
