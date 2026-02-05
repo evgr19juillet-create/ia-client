@@ -14,17 +14,26 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. STYLE CSS ---
+# --- 2. STYLE CSS (Mise en forme) ---
 st.markdown("""
 <style>
+    /* Boutons */
     .stButton>button {
         width: 100%;
         border-radius: 8px;
         height: 3em;
         font-weight: bold;
     }
+    /* Titres */
     h1 { color: #0e1117; text-align: center; }
+    
+    /* Zone de texte */
     .stTextArea textarea { font-size: 16px; }
+    
+    /* CORRECTION : Réduire la taille des GROS textes (Metrics) */
+    [data-testid="stMetricValue"] {
+        font-size: 24px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -54,7 +63,7 @@ def envoyer_mail_reel(destinataire, sujet, corps):
     msg.attach(MIMEText(corps, 'plain'))
 
     try:
-        # --- CORRECTION ICI : Serveur Hostinger ---
+        # Serveur Hostinger
         server = smtplib.SMTP('smtp.hostinger.com', 587) 
         server.starttls()
         server.login(user_email, user_password)
@@ -106,7 +115,7 @@ def generer_reclamation_offensive(text, analysis):
 
 # --- 5. INTERFACE ---
 
-# Sidebar (Barre latérale : Version Élégante)
+# Sidebar
 with st.sidebar:
     st.title("🛡️ Justi-Bot")
     st.markdown("---")
@@ -125,9 +134,7 @@ with st.sidebar:
         "votre contribution permet de payer les serveurs et de garder ce service ouvert à tous."
     )
     
-    # Bouton Don
     st.link_button("☕ Faire un don de soutien", "https://www.buymeacoffee.com/valentinremiot")
-    
     st.divider()
     st.caption("© 2026 JustiBot")
 
