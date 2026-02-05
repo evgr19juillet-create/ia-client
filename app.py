@@ -3,7 +3,7 @@ import google.generativeai as genai
 import json
 import os
 import smtplib
-from datetime import datetime  # <--- AJOUT POUR LA DATE
+from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -26,11 +26,7 @@ st.markdown("""
     }
     h1 { color: #0e1117; text-align: center; }
     .stTextArea textarea { font-size: 16px; }
-    
-    /* Taille réduite pour les métriques */
-    [data-testid="stMetricValue"] {
-        font-size: 24px !important;
-    }
+    [data-testid="stMetricValue"] { font-size: 24px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -87,26 +83,39 @@ def analyser(text):
     except:
         return {"category": "Litige", "summary": "Problème commande"}
 
-# --- MODIFICATION ICI : On ajoute ville et date ---
-def generer_reclamation_offensive(text, analysis, ville_user):
+# --- NOUVELLE FONCTION INTELLIGENTE ---
+def generer_reclamation_offensive(text, analysis, user_infos):
     model = genai.GenerativeModel(trouver_modele_disponible())
     
-    # Récupération automatique de la date
     date_jour = datetime.now().strftime("%d/%m/%Y")
+    
+    # On prépare le profil complet pour l'IA
+    profil_client = f"""
+    Nom : {user_infos['nom']}
+    Adresse : {user_infos['adresse']}
+    Code Postal / Ville : {user_infos['ville']}
+    Téléphone : {user_infos['tel']}
+    Email : {user_infos['email_user']}
+    """
     
     prompt = f"""
     Tu es un expert en médiation (NON AVOCAT).
-    SITUATION : "{text}" (Catégorie: {analysis.get('category')})
-    VILLE DU CLIENT : {ville_user}
-    DATE : {date_jour}
+    
+    INFORMATIONS DU CLIENT (Expéditeur) :
+    {profil_client}
+    
+    DATE ET LIEU : Fait à {user_infos['ville']}, le {date_jour}
+    
+    SITUATION DU LITIGE : "{text}" (Catégorie: {analysis.get('category')})
     
     MISSION : Rédige une lettre de réclamation FORMELLE.
     
-    CONSIGNES STRICTES :
-    1. Commence IMPÉRATIVEMENT par : "Fait à {ville_user}, le {date_jour}" en haut à droite.
-    2. Ensuite, mets l'objet.
-    3. Ton : Sérieux, juridique mais courtois.
-    4. Ne mets PAS de crochets pour la ville ou la date, utilise les vraies valeurs fournies.
+    CONSIGNES STRICTES DE MISE EN PAGE :
+    1. En haut à gauche : Mets les coordonnées COMPLÈTES du client (Nom, adresse, tel, mail).
+    2. En haut à droite : "Fait à {user_infos['ville']}, le {date_jour}".
+    3. Objet : Clair et précis.
+    4. Corps de la lettre : Juridique, ferme, exigeant un remboursement/action.
+    5. Signature : Signe avec le NOM du client (pas "Le Client", mais le vrai nom fourni).
     """
     try:
         response = model.generate_content(prompt)
@@ -116,63 +125,83 @@ def generer_reclamation_offensive(text, analysis, ville_user):
 
 # --- 5. INTERFACE ---
 
+# --- BARRE LATÉRALE (PROFIL UTILISATEUR) ---
 with st.sidebar:
-    st.title("🛡️ Justi-Bot")
+    st.title("👤 Mon Dossier")
+    st.info("Remplissez vos infos une fois, la lettre se remplira toute seule !")
+    
+    # Champs pour le profil
+    nom_client = st.text_input("Nom & Prénom", placeholder="Jean Dupont")
+    adresse_client = st.text_input("Adresse", placeholder="10 rue de la Paix")
+    ville_client = st.text_input("Code Postal & Ville", value="75000 Paris")
+    tel_client = st.text_input("Téléphone", placeholder="06 00 00 00 00")
+    # On demande l'email du client pour la signature (pas pour l'envoi technique)
+    email_client_visuel = st.text_input("Votre Email", placeholder="jean@gmail.com")
+    
     st.markdown("---")
-    st.info("L'IA rédige vos courriers juridiques.")
-    st.link_button("☕ Soutenir le projet", "https://www.buymeacoffee.com/valentinremiot")
     st.caption("© 2026 JustiBot")
 
+# PAGE PRINCIPALE
 st.title("⚖️ Assistant de Réclamation Automatisé")
-st.markdown("#### *Obtenez réparation pour vos produits défectueux ou retards.*")
+st.markdown("#### *Obtenez réparation sans effort.*")
 st.divider()
 
 col1, col2 = st.columns([2, 1])
 
 with col1:
     st.subheader("1. Le Problème")
-    message = st.text_area("Détails du litige :", height=180, placeholder="Racontez votre problème ici...")
+    message = st.text_area("Racontez votre litige :", height=180, placeholder="Ex: Colis jamais reçu, vendeur refuse le remboursement...")
 
 with col2:
-    st.subheader("2. Vos Infos")
-    # --- AJOUT DU CHAMP VILLE ---
-    ville = st.text_input("Votre Ville :", value="Paris")
-    email_destinataire = st.text_input("Email du SAV :", placeholder="contact@vendeur.com")
+    st.subheader("2. Le Destinataire")
+    email_destinataire = st.text_input("Email du SAV (Adversaire) :", placeholder="sav@vendeur.com")
     
     st.write("") 
+    st.write("") 
+    
+    # Vérification que le profil est rempli
     if st.button("Rédiger la lettre ✍️", type="primary"):
-        if message and email_destinataire and ville:
-            with st.spinner("Analyse et rédaction..."):
+        if message and email_destinataire and nom_client and ville_client:
+            
+            # On stocke les infos dans un dictionnaire
+            user_infos = {
+                "nom": nom_client,
+                "adresse": adresse_client,
+                "ville": ville_client,
+                "tel": tel_client,
+                "email_user": email_client_visuel
+            }
+            
+            with st.spinner("L'IA génère votre lettre personnalisée..."):
                 infos = analyser(message)
-                # On passe la ville à la fonction
-                lettre = generer_reclamation_offensive(message, infos, ville)
+                lettre = generer_reclamation_offensive(message, infos, user_infos)
                 st.session_state['lettre_prete'] = lettre
                 st.session_state['infos_pretes'] = infos
                 st.session_state['etape'] = 2
         else:
-            st.error("Merci de remplir tous les champs (Ville incluse).")
+            st.error("⚠️ Merci de remplir votre PROFIL (à gauche) et le PROBLÈME.")
 
-# Résultat
+# RESULTAT
 if 'etape' in st.session_state and st.session_state['etape'] == 2:
     st.divider()
     
     with st.expander("📊 Analyse (cliquer pour voir)", expanded=False):
         c1, c2 = st.columns(2)
         c1.metric("Motif", st.session_state['infos_pretes'].get('category'))
-        c2.metric("Stratégie", "Mise en demeure amiable")
+        c2.metric("Stratégie", "Mise en demeure")
 
     st.subheader("3. Validation et Envoi")
     
     col_text, col_send = st.columns([3, 1])
     
     with col_text:
-        texte_final = st.text_area("Votre courrier :", value=st.session_state['lettre_prete'], height=450)
+        texte_final = st.text_area("Votre courrier (Modifiable) :", value=st.session_state['lettre_prete'], height=500)
         sujet_final = st.text_input("Objet du mail :", value=f"RÉCLAMATION - {st.session_state['infos_pretes'].get('category')}")
     
     with col_send:
-        st.info("Tout est bon ?")
-        if st.button("🚀 ENVOYER"):
-            with st.spinner("Envoi..."):
+        st.info("Tout est parfait ?")
+        if st.button("🚀 ENVOYER MAINTENANT"):
+            with st.spinner("Envoi en cours..."):
                 succes, msg = envoyer_mail_reel(email_destinataire, sujet_final, texte_final)
                 if succes:
                     st.balloons()
