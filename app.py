@@ -53,7 +53,7 @@ def envoyer_mail_reel(destinataire, sujet, corps):
     msg.attach(MIMEText(corps, 'plain'))
 
     try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server = smtplib.SMTP('smtp.titan.email', 587) # Modifié pour Hostinger/Titan
         server.starttls()
         server.login(user_email, user_password)
         server.send_message(msg)
@@ -105,13 +105,34 @@ def generer_reclamation_offensive(text, analysis):
 
 # --- 5. INTERFACE (Façade) ---
 
-# Sidebar
+# Sidebar (Barre latérale avec Pourboire)
 with st.sidebar:
     st.title("🛡️ Justi-Bot")
     st.markdown("---")
     st.info("Votre assistant personnel pour faire valoir vos droits de consommateur sans frais d'avocat.")
+    
     st.write("### Mode d'emploi :")
     st.caption("1. Décrivez le litige.\n2. L'IA rédige la mise en demeure.\n3. Vous envoyez.")
+    
+    # --- AJOUT SECTION POURBOIRE ---
+    st.divider() # Ligne de séparation
+    
+    st.markdown("### ☕ Soutenir le projet")
+    st.write("JustiBot est gratuit. Si cet outil vous a aidé à récupérer votre argent, vous pouvez m'offrir un café !")
+    
+    # IMPORTANT : Changez le lien ci-dessous par VOTRE lien Buy Me a Coffee
+    link = "https://www.buymeacoffee.com/VOTRE_PSEUDO"
+    
+    st.markdown(f"""
+    <div style="text-align: center; margin-top: 15px;">
+        <a href="{link}" target="_blank">
+            <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 50px !important;width: 180px !important;" >
+        </a>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.divider()
+    st.caption("© 2026 JustiBot")
 
 # Page principale
 st.title("⚖️ Assistant de Réclamation Automatisé")
