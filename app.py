@@ -53,7 +53,7 @@ def envoyer_mail_reel(destinataire, sujet, corps):
     msg.attach(MIMEText(corps, 'plain'))
 
     try:
-        server = smtplib.SMTP('smtp.titan.email', 587) # Modifié pour Hostinger/Titan
+        server = smtplib.SMTP('smtp.titan.email', 587) 
         server.starttls()
         server.login(user_email, user_password)
         server.send_message(msg)
@@ -83,7 +83,6 @@ def analyser(text):
 def generer_reclamation_offensive(text, analysis):
     model = genai.GenerativeModel(trouver_modele_disponible())
     
-    # ICI : On change la personnalité pour rester légal mais ferme
     prompt = f"""
     Tu es un expert en médiation et en défense des consommateurs (NON AVOCAT).
     SITUATION : "{text}" (Catégorie: {analysis.get('category')})
@@ -115,13 +114,13 @@ with st.sidebar:
     st.caption("1. Décrivez le litige.\n2. L'IA rédige la mise en demeure.\n3. Vous envoyez.")
     
     # --- AJOUT SECTION POURBOIRE ---
-    st.divider() # Ligne de séparation
+    st.divider() 
     
     st.markdown("### ☕ Soutenir le projet")
     st.write("JustiBot est gratuit. Si cet outil vous a aidé à récupérer votre argent, vous pouvez m'offrir un café !")
     
-    # IMPORTANT : Changez le lien ci-dessous par VOTRE lien Buy Me a Coffee
-    link = "https://www.buymeacoffee.com/VOTRE_PSEUDO"
+    # LIEN CORRIGÉ ICI 👇
+    link = "https://www.buymeacoffee.com/valentinremiot"
     
     st.markdown(f"""
     <div style="text-align: center; margin-top: 15px;">
@@ -148,7 +147,7 @@ with col1:
 with col2:
     st.subheader("2. Le Destinataire")
     email_destinataire = st.text_input("Email du SAV :", placeholder="contact@vendeur.com")
-    st.write("") # Espace vide
+    st.write("") 
     st.write("") 
     if st.button("Rédiger la lettre ✍️", type="primary"):
         if message and email_destinataire:
