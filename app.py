@@ -54,7 +54,7 @@ def envoyer_mail_reel(destinataire, sujet, corps):
 
     try:
         # Configuration pour Hostinger (Titan Email)
-        server = smtplib.SMTP('smtp.titan.email', 587)
+        server = smtplib.SMTP('smtp.titan.email', 587) 
         server.starttls()
         server.login(user_email, user_password)
         server.send_message(msg)
@@ -120,7 +120,7 @@ with st.sidebar:
     st.markdown("### ☕ Soutenir le projet")
     st.write("JustiBot est gratuit. Si cet outil vous a aidé à récupérer votre argent, vous pouvez m'offrir un café !")
     
-    # VOTRE LIEN EST ICI 👇
+    # VOTRE LIEN ICI 👇
     link = "https://www.buymeacoffee.com/valentinremiot"
     
     st.markdown(f"""
