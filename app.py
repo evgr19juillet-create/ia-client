@@ -7,7 +7,7 @@ from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# --- 1. CONFIGURATION DE LA PAGE (DOIT ÊTRE AU DÉBUT) ---
+# --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(
     page_title="Justi-Bot",
     page_icon="🛡️",
@@ -15,10 +15,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. VERROUILLAGE VISUEL (MODE PRO) ---
+# --- 2. VERROUILLAGE VISUEL (STYLE) ---
 st.markdown("""
 <style>
-    /* Cache le bouton 'Deploy' et le menu Hamburger (les 3 points) */
+    /* Cache le bouton 'Deploy' et le menu Hamburger */
     .stDeployButton {display:none;}
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
@@ -41,23 +41,26 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. CONFIGURATION SECRETS ---
+# --- 3. GESTION DES SECRETS (CLÉS) ---
 try:
+    # Essaie de récupérer depuis Streamlit Cloud
     api_key = st.secrets["GEMINI_KEY"]
     user_email = st.secrets["EMAIL_ADDRESS"]
     user_password = st.secrets["EMAIL_PASSWORD"]
 except:
+    # Sinon essaie depuis les variables d'environnement (local)
     api_key = os.getenv("GEMINI_KEY")
     user_email = os.getenv("EMAIL_ADDRESS")
     user_password = os.getenv("EMAIL_PASSWORD")
 
 if not api_key:
-    st.error("⚠️ Maintenance en cours (Clé API).")
+    st.error("⚠️ Erreur de configuration : Clé API manquante.")
     st.stop()
 
 genai.configure(api_key=api_key)
 
 # --- 4. FONCTIONS ---
+
 def envoyer_mail_reel(destinataire, sujet, corps):
     msg = MIMEMultipart()
     msg['From'] = user_email
@@ -66,6 +69,7 @@ def envoyer_mail_reel(destinataire, sujet, corps):
     msg.attach(MIMEText(corps, 'plain'))
 
     try:
+        # Configuration pour Hostinger
         server = smtplib.SMTP('smtp.hostinger.com', 587) 
         server.starttls()
         server.login(user_email, user_password)
@@ -73,7 +77,7 @@ def envoyer_mail_reel(destinataire, sujet, corps):
         server.quit()
         return True, "✅ Dossier transmis juridiquement !"
     except Exception as e:
-        return False, "Erreur d'envoi. Vérifiez l'email du destinataire."
+        return False, f"Erreur d'envoi : {str(e)}"
 
 def trouver_modele_disponible():
     try:
@@ -86,15 +90,18 @@ def trouver_modele_disponible():
         return "models/gemini-pro"
 
 def analyser(text):
-    model = genai.GenerativeModel(trouver_modele_disponible())
+    model_name = trouver_modele_disponible()
+    model = genai.GenerativeModel(model_name)
     try:
-        response = model.generate_content(f"Analyse ce problème en JSON (category, summary). Contexte : {text}")
-        return json.loads(response.text.replace("```json", "").replace("```", "").strip())
+        response = model.generate_content(f"Analyse ce problème en JSON strictement au format {{'category': '...', 'summary': '...'}}. Contexte : {text}")
+        clean_text = response.text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean_text)
     except:
         return {"category": "Litige commercial", "summary": "Réclamation client"}
 
 def generer_reclamation_offensive(text, analysis, user_infos):
-    model = genai.GenerativeModel(trouver_modele_disponible())
+    model_name = trouver_modele_disponible()
+    model = genai.GenerativeModel(model_name)
     date_jour = datetime.now().strftime("%d/%m/%Y")
     
     profil_client = f"""
@@ -186,7 +193,7 @@ if 'etape' in st.session_state and st.session_state['etape'] == 2:
     
     with st.expander("Voir l'analyse juridique (Détails)", expanded=False):
         c1, c2 = st.columns(2)
-        c1.metric("Qualification", st.session_state['infos_pretes'].get('category'))
+        c1.metric("Qualification", st.session_state['infos_pretes'].get('category', 'Non classé'))
         c2.metric("Procédure", "Mise en demeure (Art. 1344 C.Civil)")
 
     st.subheader("3. Vérification et Envoi")
@@ -195,7 +202,8 @@ if 'etape' in st.session_state and st.session_state['etape'] == 2:
     
     with col_text:
         texte_final = st.text_area("Courrier officiel :", value=st.session_state['lettre_prete'], height=550)
-        sujet_final = st.text_input("Objet du mail :", value=f"MISE EN DEMEURE - Dossier {st.session_state['infos_pretes'].get('category')}")
+        category = st.session_state['infos_pretes'].get('category', 'Litige')
+        sujet_final = st.text_input("Objet du mail :", value=f"MISE EN DEMEURE - Dossier {category}")
     
     with col_send:
         st.warning("⚠️ Action irréversible.")
