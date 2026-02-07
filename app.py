@@ -33,18 +33,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. RÉCUPÉRATION DES SECRETS (C'est ici que ça se joue !) ---
+# --- 3. RÉCUPÉRATION DES SECRETS ---
 try:
-    # On récupère les clés que tu as mises dans Streamlit Cloud
     api_key = st.secrets["GEMINI_KEY"]
     user_email = st.secrets["EMAIL_ADDRESS"]
     user_password = st.secrets["EMAIL_PASSWORD"]
 except FileNotFoundError:
-    # Si on lance en local sans secrets, on affiche une erreur ou on cherche ailleurs
     st.error("⚠️ Les secrets (clés) ne sont pas configurés sur Streamlit Cloud.")
     st.stop()
 
-# Configuration de l'IA avec la clé récupérée
 genai.configure(api_key=api_key)
 
 # --- 4. FONCTIONS ---
@@ -57,10 +54,8 @@ def envoyer_mail_reel(destinataire, sujet, corps):
     msg.attach(MIMEText(corps, 'plain'))
 
     try:
-        # Configuration SMTP pour Hostinger
         server = smtplib.SMTP('smtp.hostinger.com', 587)
         server.starttls()
-        # Ici on utilise le mot de passe sécurisé récupéré plus haut
         server.login(user_email, user_password)
         server.send_message(msg)
         server.quit()
@@ -69,7 +64,6 @@ def envoyer_mail_reel(destinataire, sujet, corps):
         return False, f"Erreur d'envoi : {str(e)}"
 
 def trouver_modele_disponible():
-    # Cherche le meilleur modèle Gemini disponible
     try:
         liste = genai.list_models()
         for m in liste:
@@ -82,10 +76,8 @@ def trouver_modele_disponible():
 def analyser(text):
     model = genai.GenerativeModel(trouver_modele_disponible())
     try:
-        # Demande une analyse structurée en JSON
         prompt = f"Analyse ce litige et renvoie un JSON {{'category': '...', 'summary': '...'}}. Contexte : {text}"
         response = model.generate_content(prompt)
-        # Nettoyage de la réponse pour éviter les bugs de format
         clean_json = response.text.replace("```json", "").replace("```", "").strip()
         return json.loads(clean_json)
     except:
@@ -123,6 +115,19 @@ with st.sidebar:
     adresse_client = st.text_input("Adresse")
     ville_client = st.text_input("Code Postal & Ville")
     email_client_visuel = st.text_input("Votre Email (signature)")
+    
+    # --- AJOUT SECTION DONS (STRIPE) ---
+    st.add_vertical_space(2)
+    st.divider()
+    st.subheader("☕ Soutenir le projet")
+    st.caption("L'application est 100% gratuite. Si Justi-Bot vous aide à récupérer votre argent, un petit soutien fait toujours plaisir !")
+    
+    # Ton lien Stripe ici
+    st.link_button(
+        "❤️ Faire un don (CB / Apple Pay)", 
+        "https://buy.stripe.com/test_cNi28rdpobCU6Pe6q5bbG00", 
+        type="primary"
+    )
 
 st.title("⚖️ Justi-Bot : Assistant Juridique")
 
@@ -159,7 +164,22 @@ if 'etape' in st.session_state and st.session_state['etape'] == 2:
         with st.spinner("Envoi en cours..."):
             succes, msg = envoyer_mail_reel(email_destinataire, sujet, texte_final)
             if succes:
-                st.success(msg)
                 st.balloons()
+                st.success(msg)
+                
+                # --- AJOUT DU BLOC DE DON APRÈS SUCCÈS ---
+                st.markdown("---")
+                st.markdown("### 👏 Mission accomplie !")
+                st.info("Votre mise en demeure a été envoyée ! Si ce service vous a été utile, pensez à soutenir le développeur.")
+                
+                col_vide, col_btn, col_vide2 = st.columns([1, 2, 1])
+                with col_btn:
+                    st.link_button(
+                        "🏆 Offrir un café de la victoire", 
+                        "https://buy.stripe.com/test_cNi28rdpobCU6Pe6q5bbG00", 
+                        type="primary",
+                        use_container_width=True
+                    )
+                # -----------------------------------------
             else:
                 st.error(msg)
