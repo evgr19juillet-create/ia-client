@@ -1,7 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
 import json
-import os
 import smtplib
 from datetime import datetime
 from email.mime.text import MIMEText
@@ -111,12 +110,29 @@ def generer_reclamation(text, analysis, user_infos):
 
 with st.sidebar:
     st.title("👤 Vos Coordonnées")
-    nom_client = st.text_input("Nom & Prénom")
-    adresse_client = st.text_input("Adresse")
-    ville_client = st.text_input("Code Postal & Ville")
-    email_client_visuel = st.text_input("Votre Email (signature)")
-    
-    # --- CORRECTION DE L'ERREUR ICI ---
+    st.info("Remplissez vos infos et cliquez sur 'Sauvegarder' pour créer votre lien personnel.")
+
+    # -- LOGIQUE DE RÉCUPÉRATION DES INFOS DANS L'URL --
+    # On regarde si l'URL contient déjà des infos
+    def get_val(key):
+        return st.query_params.get(key, "")
+
+    # On pré-remplit les champs avec ce qu'il y a dans l'URL (si ça existe)
+    nom_client = st.text_input("Nom & Prénom", value=get_val("nom"))
+    adresse_client = st.text_input("Adresse", value=get_val("adresse"))
+    ville_client = st.text_input("Code Postal & Ville", value=get_val("ville"))
+    email_client_visuel = st.text_input("Votre Email (signature)", value=get_val("email"))
+
+    # Bouton pour sauvegarder
+    if st.button("💾 Sauvegarder mon profil"):
+        # On écrit les infos dans l'URL
+        st.query_params["nom"] = nom_client
+        st.query_params["adresse"] = adresse_client
+        st.query_params["ville"] = ville_client
+        st.query_params["email"] = email_client_visuel
+        st.success("✅ Profil sauvegardé ! Ajoutez maintenant cette page à vos favoris ⭐ pour revenir sans rien retaper.")
+
+    # --- SECTION DONS (STRIPE) ---
     st.write("") 
     st.write("") 
     st.divider()
@@ -124,7 +140,7 @@ with st.sidebar:
     st.subheader("☕ Soutenir le projet")
     st.caption("L'application est 100% gratuite. Si Justibots vous aide à récupérer votre argent, un petit soutien fait toujours plaisir !")
     
-    # Ton lien Stripe ici
+    # Ton lien Stripe
     st.link_button(
         "❤️ Faire un don (CB / Apple Pay)", 
         "https://buy.stripe.com/test_cNi28rdpobCU6Pe6q5bbG00", 
