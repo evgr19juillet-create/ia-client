@@ -116,10 +116,11 @@ with st.sidebar:
     ville_client = st.text_input("Code Postal & Ville")
     email_client_visuel = st.text_input("Votre Email (signature)")
     
-    # --- AJOUT SECTION DONS (STRIPE) ---
-    st.write("") # Espace vide simple pour éviter le bug
+    # --- CORRECTION DE L'ERREUR ICI ---
+    st.write("") 
     st.write("") 
     st.divider()
+    
     st.subheader("☕ Soutenir le projet")
     st.caption("L'application est 100% gratuite. Si Justibots vous aide à récupérer votre argent, un petit soutien fait toujours plaisir !")
     
