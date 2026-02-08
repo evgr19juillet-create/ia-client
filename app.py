@@ -117,7 +117,8 @@ with st.sidebar:
     email_client_visuel = st.text_input("Votre Email (signature)")
     
     # --- AJOUT SECTION DONS (STRIPE) ---
-    st.add_vertical_space(2)
+    st.write("") # Espace vide (remplace add_vertical_space qui plantait)
+    st.write("") 
     st.divider()
     st.subheader("☕ Soutenir le projet")
     st.caption("L'application est 100% gratuite. Si Justi-Bot vous aide à récupérer votre argent, un petit soutien fait toujours plaisir !")
