@@ -9,7 +9,7 @@ from email.mime.multipart import MIMEMultipart
 
 # --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(
-    page_title="Justi-Bot",
+    page_title="Justibots",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -117,11 +117,11 @@ with st.sidebar:
     email_client_visuel = st.text_input("Votre Email (signature)")
     
     # --- AJOUT SECTION DONS (STRIPE) ---
-    st.write("") # Espace vide (remplace add_vertical_space qui plantait)
+    st.write("") # Espace vide simple pour éviter le bug
     st.write("") 
     st.divider()
     st.subheader("☕ Soutenir le projet")
-    st.caption("L'application est 100% gratuite. Si Justi-Bot vous aide à récupérer votre argent, un petit soutien fait toujours plaisir !")
+    st.caption("L'application est 100% gratuite. Si Justibots vous aide à récupérer votre argent, un petit soutien fait toujours plaisir !")
     
     # Ton lien Stripe ici
     st.link_button(
@@ -130,7 +130,7 @@ with st.sidebar:
         type="primary"
     )
 
-st.title("⚖️ Justi-Bot : Assistant Juridique")
+st.title("⚖️ Justibots : Assistant Juridique")
 
 col1, col2 = st.columns([2, 1])
 
