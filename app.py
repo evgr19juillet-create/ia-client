@@ -93,7 +93,7 @@ def generer_courrier(probleme, categorie, user_infos):
 st.title("⚖️ Justibots : Assistant Juridique")
 st.markdown("Remplissez vos infos, décrivez le problème, et laissez l'IA rédiger la mise en demeure.")
 
-# --- BARRE LATÉRALE (FORMULAIRE CLIENT) ---
+# --- BARRE LATÉRALE (FORMULAIRE CLIENT + DONATION) ---
 with st.sidebar:
     st.header("👤 Vos Coordonnées")
     st.info("Ces informations sont nécessaires pour la validité du courrier.")
@@ -104,7 +104,19 @@ with st.sidebar:
     email_client_perso = st.text_input("Votre Email (pour signature)", placeholder="jean.dupont@email.com")
     
     st.divider()
-    st.caption("Justibots v1.0 - Propulsé par Gemini AI")
+    
+    # --- SECTION DONATION (SIDEBAR) ---
+    st.subheader("☕ Soutenir le projet")
+    st.caption("L'application est 100% gratuite. Si Justibots vous aide, un petit soutien fait toujours plaisir !")
+    
+    # Mettez votre vral lien Stripe ici à la place du lien test
+    st.link_button(
+        "❤️ Faire un don libre", 
+        "https://buy.stripe.com/test_cNi28rdpobCU6Pe6q5bbG00", 
+        type="secondary",
+        use_container_width=True
+    )
+    st.caption("Paiement sécurisé par Stripe")
 
 # --- ZONE PRINCIPALE ---
 col1, col2 = st.columns([1, 1])
@@ -137,7 +149,7 @@ with col2:
                 }
                 courrier_genere = generer_courrier(message_litige, cat, infos_client)
                 
-                # Stockage dans la session pour ne pas perdre le texte si on recharge
+                # Stockage dans la session
                 st.session_state['courrier'] = courrier_genere
                 st.session_state['sujet'] = f"MISE EN DEMEURE - {cat} - Dossier {nom_client}"
                 st.success("Courrier généré avec succès ! Vérifiez ci-dessous.")
@@ -147,7 +159,7 @@ if 'courrier' in st.session_state:
     st.divider()
     st.subheader("📝 Votre courrier est prêt")
     
-    # Zone éditable pour que l'utilisateur puisse corriger avant envoi
+    # Zone éditable
     courrier_final = st.text_area("Relisez et modifiez si besoin :", value=st.session_state['courrier'], height=400)
     sujet_final = st.text_input("Objet du mail :", value=st.session_state['sujet'])
     
@@ -162,5 +174,20 @@ if 'courrier' in st.session_state:
                     if ok:
                         st.balloons()
                         st.success(msg)
+                        
+                        # --- APPEL AU DON APRÈS SUCCÈS ---
+                        st.markdown("---")
+                        st.markdown("### 👏 Mission accomplie !")
+                        st.info("Votre mise en demeure a été envoyée ! Si ce service vous a permis de régler votre problème gratuitement, pensez à offrir un café au développeur.")
+                        
+                        col_vide, col_btn, col_vide2 = st.columns([1, 2, 1])
+                        with col_btn:
+                            st.link_button(
+                                "🏆 Offrir un café de la victoire (Don)", 
+                                "https://buy.stripe.com/test_cNi28rdpobCU6Pe6q5bbG00", 
+                                type="primary",
+                                use_container_width=True
+                            )
+                        # ---------------------------------
                     else:
                         st.error(msg)
