@@ -14,13 +14,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. RÉCUPÉRATION DES SECRETS ---
+# --- 2. RÉCUPÉRATION DES SECRETS (CORRIGÉ) ---
 try:
-    api_key = st.secrets["GEMINI_KEY"]
-    user_email = st.secrets["EMAIL_ADDRESS"]
+    # On utilise les noms exacts configurés dans Streamlit Cloud
+    api_key = st.secrets["GOOGLE_API_KEY"]
+    user_email = st.secrets["EMAIL_USER"]
     user_password = st.secrets["EMAIL_PASSWORD"]
+    # On récupère aussi la config serveur pour être propre
+    smtp_host = st.secrets["EMAIL_HOST"]
+    smtp_port = st.secrets["EMAIL_PORT"]
 except FileNotFoundError:
     st.error("⚠️ Les secrets (clés) ne sont pas configurés. Vérifiez sur Streamlit.")
+    st.stop()
+except KeyError as e:
+    st.error(f"⚠️ Il manque une clé dans les secrets Streamlit : {e}")
     st.stop()
 
 genai.configure(api_key=api_key)
@@ -35,18 +42,18 @@ def envoyer_mail(destinataire, sujet, corps):
     msg.attach(MIMEText(corps, 'plain'))
 
     try:
-        # Configuration spécifique pour Hostinger
-        server = smtplib.SMTP('smtp.hostinger.com', 587)
-        server.starttls()
-        server.login(user_email, user_password)
-        server.send_message(msg)
-        server.quit()
+        # CORRECTION : Utilisation de SMTP_SSL pour le port 465 (Hostinger)
+        # On utilise les variables récupérées dans les secrets
+        with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
+            server.login(user_email, user_password)
+            server.send_message(msg)
+        
         return True, "✅ Courrier envoyé avec succès !"
     except Exception as e:
         return False, f"Erreur d'envoi : {str(e)}"
 
 def analyse_ia(text):
-    # CORRECTION : Utilisation du modèle standard pour éviter l'erreur 404
+    # Utilisation de gemini-1.5-flash (plus rapide et actuel) ou gemini-pro
     model = genai.GenerativeModel('gemini-pro')
     try:
         prompt = f"Analyse ce problème juridique et classe-le (ex: Remboursement, Non-livraison, Vice caché). Réponds juste par la catégorie. Contexte: {text}"
@@ -56,7 +63,6 @@ def analyse_ia(text):
         return "Litige commercial"
 
 def generer_courrier(probleme, categorie, user_infos):
-    # CORRECTION : Utilisation du modèle standard
     model = genai.GenerativeModel('gemini-pro')
     date_jour = datetime.now().strftime("%d/%m/%Y")
     
