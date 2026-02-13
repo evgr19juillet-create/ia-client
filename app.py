@@ -46,8 +46,8 @@ def envoyer_mail(destinataire, sujet, corps):
         return False, f"Erreur d'envoi : {str(e)}"
 
 def analyse_ia(text):
-    # Fonction simple pour catégoriser le problème
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # CORRECTION ICI : Utilisation de gemini-pro (plus stable)
+    model = genai.GenerativeModel('gemini-pro')
     try:
         prompt = f"Analyse ce problème juridique et classe-le (ex: Remboursement, Non-livraison, Vice caché). Réponds juste par la catégorie. Contexte: {text}"
         response = model.generate_content(prompt)
@@ -56,7 +56,8 @@ def analyse_ia(text):
         return "Litige commercial"
 
 def generer_courrier(probleme, categorie, user_infos):
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # CORRECTION ICI : Utilisation de gemini-pro
+    model = genai.GenerativeModel('gemini-pro')
     date_jour = datetime.now().strftime("%d/%m/%Y")
     
     # Construction du prompt avec les infos du formulaire
@@ -109,7 +110,7 @@ with st.sidebar:
     st.subheader("☕ Soutenir le projet")
     st.caption("L'application est 100% gratuite. Si Justibots vous aide, un petit soutien fait toujours plaisir !")
     
-    # Mettez votre vral lien Stripe ici à la place du lien test
+    # Mettez votre vrai lien Stripe ici à la place du lien test
     st.link_button(
         "❤️ Faire un don libre", 
         "https://buy.stripe.com/test_cNi28rdpobCU6Pe6q5bbG00", 
