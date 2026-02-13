@@ -1,51 +1,33 @@
 import streamlit as st
 import google.generativeai as genai
-import json
 import smtplib
-from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import json
+from datetime import datetime
 
 # --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(
     page_title="Justibots",
-    page_icon="🛡️",
+    page_icon="⚖️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- 2. STYLE VISUEL ---
-st.markdown("""
-<style>
-    .stDeployButton {display:none;}
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .stButton>button {
-        width: 100%;
-        border-radius: 8px;
-        height: 3em;
-        font-weight: bold;
-        background-color: #FF4B4B;
-        color: white;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# --- 3. RÉCUPÉRATION DES SECRETS ---
+# --- 2. RÉCUPÉRATION DES SECRETS ---
 try:
     api_key = st.secrets["GEMINI_KEY"]
     user_email = st.secrets["EMAIL_ADDRESS"]
     user_password = st.secrets["EMAIL_PASSWORD"]
 except FileNotFoundError:
-    st.error("⚠️ Les secrets (clés) ne sont pas configurés sur Streamlit Cloud.")
+    st.error("⚠️ Les secrets (clés) ne sont pas configurés. Vérifiez sur Streamlit.")
     st.stop()
 
 genai.configure(api_key=api_key)
 
-# --- 4. FONCTIONS ---
+# --- 3. FONCTIONS ---
 
-def envoyer_mail_reel(destinataire, sujet, corps):
+def envoyer_mail(destinataire, sujet, corps):
     msg = MIMEMultipart()
     msg['From'] = user_email
     msg['To'] = destinataire
@@ -53,6 +35,7 @@ def envoyer_mail_reel(destinataire, sujet, corps):
     msg.attach(MIMEText(corps, 'plain'))
 
     try:
+        # Configuration spécifique pour Hostinger
         server = smtplib.SMTP('smtp.hostinger.com', 587)
         server.starttls()
         server.login(user_email, user_password)
@@ -62,142 +45,122 @@ def envoyer_mail_reel(destinataire, sujet, corps):
     except Exception as e:
         return False, f"Erreur d'envoi : {str(e)}"
 
-def trouver_modele_disponible():
+def analyse_ia(text):
+    # Fonction simple pour catégoriser le problème
+    model = genai.GenerativeModel('gemini-1.5-flash')
     try:
-        liste = genai.list_models()
-        for m in liste:
-            if 'generateContent' in m.supported_generation_methods and 'flash' in m.name:
-                return m.name
-        return "models/gemini-1.5-flash"
-    except:
-        return "models/gemini-pro"
-
-def analyser(text):
-    model = genai.GenerativeModel(trouver_modele_disponible())
-    try:
-        prompt = f"Analyse ce litige et renvoie un JSON {{'category': '...', 'summary': '...'}}. Contexte : {text}"
+        prompt = f"Analyse ce problème juridique et classe-le (ex: Remboursement, Non-livraison, Vice caché). Réponds juste par la catégorie. Contexte: {text}"
         response = model.generate_content(prompt)
-        clean_json = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean_json)
+        return response.text.strip()
     except:
-        return {"category": "Litige commercial", "summary": "Réclamation client"}
+        return "Litige commercial"
 
-def generer_reclamation(text, analysis, user_infos):
-    model = genai.GenerativeModel(trouver_modele_disponible())
+def generer_courrier(probleme, categorie, user_infos):
+    model = genai.GenerativeModel('gemini-1.5-flash')
     date_jour = datetime.now().strftime("%d/%m/%Y")
     
-    profil = f"Nom: {user_infos['nom']}, Adresse: {user_infos['adresse']}, {user_infos['ville']}"
-    
+    # Construction du prompt avec les infos du formulaire
     prompt = f"""
-    Rédige une mise en demeure formelle.
-    CLIENT : {profil}
-    DATE : {date_jour}
-    SITUATION : "{text}"
-    CATÉGORIE : {analysis.get('category')}
+    Agis comme un avocat expert en droit de la consommation français.
+    Rédige une MISE EN DEMEURE formelle et menaçante.
     
-    RÈGLES :
-    - Ton ton doit être juridique, ferme et menaçant.
-    - Cite le Code Civil ou Code de la Consommation français.
-    - Exige une réponse sous 8 jours.
+    EXPÉDITEUR (MON CLIENT) :
+    Nom : {user_infos['nom']}
+    Adresse : {user_infos['adresse']}
+    Ville : {user_infos['ville']}
+    Email : {user_infos['email']}
+    
+    DATE : {date_jour}
+    MOTIF DU LITIGE : {categorie}
+    DÉTAILS DES FAITS : "{probleme}"
+    
+    CONSIGNES DE RÉDACTION :
+    1. Commence par l'en-tête complet (Expéditeur en haut à gauche).
+    2. Utilise un ton ferme, juridique et cite les articles du Code de la Consommation ou Code Civil pertinents.
+    3. Exige une résolution sous 8 jours.
+    4. Menace de saisir le médiateur ou le tribunal compétent.
+    5. Termine par la signature (Nom du client).
     """
+    
     try:
         response = model.generate_content(prompt)
         return response.text
-    except:
-        return "Erreur lors de la rédaction du courrier."
+    except Exception as e:
+        return f"Erreur IA : {e}"
 
-# --- 5. INTERFACE ---
-
-with st.sidebar:
-    st.title("👤 Vos Coordonnées")
-    st.info("Remplissez vos infos et cliquez sur 'Sauvegarder' pour créer votre lien personnel.")
-
-    # -- LOGIQUE DE RÉCUPÉRATION DES INFOS DANS L'URL --
-    # On regarde si l'URL contient déjà des infos
-    def get_val(key):
-        return st.query_params.get(key, "")
-
-    # On pré-remplit les champs avec ce qu'il y a dans l'URL (si ça existe)
-    nom_client = st.text_input("Nom & Prénom", value=get_val("nom"))
-    adresse_client = st.text_input("Adresse", value=get_val("adresse"))
-    ville_client = st.text_input("Code Postal & Ville", value=get_val("ville"))
-    email_client_visuel = st.text_input("Votre Email (signature)", value=get_val("email"))
-
-    # Bouton pour sauvegarder
-    if st.button("💾 Sauvegarder mon profil"):
-        # On écrit les infos dans l'URL
-        st.query_params["nom"] = nom_client
-        st.query_params["adresse"] = adresse_client
-        st.query_params["ville"] = ville_client
-        st.query_params["email"] = email_client_visuel
-        st.success("✅ Profil sauvegardé ! Ajoutez maintenant cette page à vos favoris ⭐ pour revenir sans rien retaper.")
-
-    # --- SECTION DONS (STRIPE) ---
-    st.write("") 
-    st.write("") 
-    st.divider()
-    
-    st.subheader("☕ Soutenir le projet")
-    st.caption("L'application est 100% gratuite. Si Justibots vous aide à récupérer votre argent, un petit soutien fait toujours plaisir !")
-    
-    # Ton lien Stripe
-    st.link_button(
-        "❤️ Faire un don (CB / Apple Pay)", 
-        "https://buy.stripe.com/test_cNi28rdpobCU6Pe6q5bbG00", 
-        type="primary"
-    )
+# --- 4. INTERFACE ---
 
 st.title("⚖️ Justibots : Assistant Juridique")
+st.markdown("Remplissez vos infos, décrivez le problème, et laissez l'IA rédiger la mise en demeure.")
 
-col1, col2 = st.columns([2, 1])
+# --- BARRE LATÉRALE (FORMULAIRE CLIENT) ---
+with st.sidebar:
+    st.header("👤 Vos Coordonnées")
+    st.info("Ces informations sont nécessaires pour la validité du courrier.")
+    
+    nom_client = st.text_input("Nom & Prénom", placeholder="Jean Dupont")
+    adresse_client = st.text_input("Adresse (Rue)", placeholder="10 rue de la Liberté")
+    ville_client = st.text_input("Code Postal & Ville", placeholder="75000 Paris")
+    email_client_perso = st.text_input("Votre Email (pour signature)", placeholder="jean.dupont@email.com")
+    
+    st.divider()
+    st.caption("Justibots v1.0 - Propulsé par Gemini AI")
+
+# --- ZONE PRINCIPALE ---
+col1, col2 = st.columns([1, 1])
 
 with col1:
-    st.subheader("Le Litige")
-    message = st.text_area("Décrivez le problème...", height=200)
+    st.subheader("1. Le Problème")
+    message_litige = st.text_area("Expliquez la situation en détail...", height=250, placeholder="J'ai acheté un iPhone le 10 janvier, il ne marche plus et le vendeur refuse le retour...")
 
 with col2:
-    st.subheader("Destinataire")
-    email_destinataire = st.text_input("Email du SAV adverse")
+    st.subheader("2. Le Destinataire (SAV)")
+    email_sav = st.text_input("Email du SAV adverse", placeholder="sav@vendeur.com")
     
-    if st.button("Générer le courrier ⚡", type="primary"):
-        if message and nom_client and ville_client:
-            user_infos = {"nom": nom_client, "adresse": adresse_client, "ville": ville_client, "email_user": email_client_visuel}
-            with st.spinner("L'IA analyse votre dossier..."):
-                infos = analyser(message)
-                lettre = generer_reclamation(message, infos, user_infos)
-                st.session_state['lettre'] = lettre
-                st.session_state['infos'] = infos
-                st.session_state['etape'] = 2
+    st.write("") # Espace
+    st.write("") 
+    
+    # Bouton de génération
+    if st.button("Générer ma Mise en Demeure ⚡", type="primary", use_container_width=True):
+        if not nom_client or not message_litige:
+            st.error("⚠️ Merci de remplir au moins votre NOM et la DESCRIPTION du problème.")
         else:
-            st.error("Remplissez vos coordonnées et le problème.")
+            with st.spinner("L'avocat IA rédige votre courrier..."):
+                # 1. Analyse
+                cat = analyse_ia(message_litige)
+                # 2. Rédaction
+                infos_client = {
+                    "nom": nom_client,
+                    "adresse": adresse_client,
+                    "ville": ville_client,
+                    "email": email_client_perso
+                }
+                courrier_genere = generer_courrier(message_litige, cat, infos_client)
+                
+                # Stockage dans la session pour ne pas perdre le texte si on recharge
+                st.session_state['courrier'] = courrier_genere
+                st.session_state['sujet'] = f"MISE EN DEMEURE - {cat} - Dossier {nom_client}"
+                st.success("Courrier généré avec succès ! Vérifiez ci-dessous.")
 
-if 'etape' in st.session_state and st.session_state['etape'] == 2:
+# --- ZONE DE RÉSULTAT ET ENVOI ---
+if 'courrier' in st.session_state:
     st.divider()
-    st.success("✅ Courrier généré.")
+    st.subheader("📝 Votre courrier est prêt")
     
-    texte_final = st.text_area("Vérifiez le courrier :", value=st.session_state['lettre'], height=400)
-    sujet = st.text_input("Objet du mail", value=f"MISE EN DEMEURE - {st.session_state['infos'].get('category')}")
+    # Zone éditable pour que l'utilisateur puisse corriger avant envoi
+    courrier_final = st.text_area("Relisez et modifiez si besoin :", value=st.session_state['courrier'], height=400)
+    sujet_final = st.text_input("Objet du mail :", value=st.session_state['sujet'])
     
-    if st.button("🚀 ENVOYER MAINTENANT"):
-        with st.spinner("Envoi en cours..."):
-            succes, msg = envoyer_mail_reel(email_destinataire, sujet, texte_final)
-            if succes:
-                st.balloons()
-                st.success(msg)
-                
-                # --- AJOUT DU BLOC DE DON APRÈS SUCCÈS ---
-                st.markdown("---")
-                st.markdown("### 👏 Mission accomplie !")
-                st.info("Votre mise en demeure a été envoyée ! Si ce service vous a été utile, pensez à soutenir le développeur.")
-                
-                col_vide, col_btn, col_vide2 = st.columns([1, 2, 1])
-                with col_btn:
-                    st.link_button(
-                        "🏆 Offrir un café de la victoire", 
-                        "https://buy.stripe.com/test_cNi28rdpobCU6Pe6q5bbG00", 
-                        type="primary",
-                        use_container_width=True
-                    )
-                # -----------------------------------------
+    col_send, col_space = st.columns([1, 2])
+    with col_send:
+        if st.button("🚀 Envoyer le mail maintenant"):
+            if not email_sav:
+                st.error("Il manque l'email du destinataire (SAV) !")
             else:
-                st.error(msg)
+                with st.spinner("Envoi en cours via Hostinger..."):
+                    ok, msg = envoyer_mail(email_sav, sujet_final, courrier_final)
+                    if ok:
+                        st.balloons()
+                        st.success(msg)
+                    else:
+                        st.error(msg)
